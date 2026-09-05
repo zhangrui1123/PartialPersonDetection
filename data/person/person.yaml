@@ -1,0 +1,7 @@
+path: /home/rui/projects/PartialPersonDetection/data/person
+train: images/train
+val: images/val
+nc: 1
+names:
+- person
+channels: 1

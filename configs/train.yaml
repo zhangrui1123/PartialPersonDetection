@@ -1,0 +1,29 @@
+# Grayscale 640x480 person occupancy (YOLOv8n).
+model: configs/yolov8n-gray.yaml
+pretrained_rgb: weights/yolov8n.pt
+data: data/person/person.yaml
+epochs: 50
+imgsz: [480, 640]
+rect: true
+batch: 128
+device: 0
+workers: 16
+patience: 20
+optimizer: SGD
+lr0: 0.01
+lrf: 0.01
+seed: 42
+pretrained: false
+mosaic: 1.0
+close_mosaic: 10
+degrees: 5.0
+translate: 0.2
+scale: 0.7
+fliplr: 0.5
+hsv_h: 0.0
+hsv_s: 0.0
+hsv_v: 0.4
+erasing: 0.25
+project: runs
+name: yolov8n_gray
+exist_ok: true

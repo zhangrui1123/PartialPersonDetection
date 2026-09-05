@@ -1,0 +1,8 @@
+ultralytics>=8.3.0
+opencv-python-headless>=4.8.0
+# Use torchvision built for the same CUDA as torch (e.g. cu128).
+pyyaml>=6.0
+numpy>=1.24.0
+pillow>=10.0.0
+matplotlib>=3.7.0
+tqdm>=4.65.0

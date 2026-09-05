@@ -1,0 +1,10 @@
+data/raw/
+data/gray/
+data/person/images/
+data/person/labels/
+data/person_debug/
+runs/
+__pycache__/
+.venv/
+*.pyc
+/yolov8n.pt
