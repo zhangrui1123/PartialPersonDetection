@@ -1,0 +1,13 @@
+# CANN Kit lightweight tool — ONNX no-train 8-bit (Quant_INT8-8).
+# Docs: https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/cannkit-lightweight-tool-instructions
+# Official dopt reads IMAGE as a folder. mean/std implement (x-0)/255.
+strategy: 'Quant_INT8-8'
+device: USE_CPU
+preprocess_parameter:
+{
+    input_type: IMAGE
+    image_format: BGR
+    mean_value: 0.0
+    standard_deviation: 255.0
+    input_file_path: './runs/quant/calib_images'
+}
