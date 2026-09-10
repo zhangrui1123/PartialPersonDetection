@@ -7,10 +7,7 @@ import argparse
 import json
 from pathlib import Path
 
-from ultralytics import YOLO
-
-ROOT = Path(__file__).resolve().parent
-DEFAULT_WEIGHTS = ROOT / "weights" / "yolo_gray_640_480.pt"
+from models import DEFAULT_WEIGHTS, IMGSZ, ROOT, build_model
 
 
 def occupancy_from_result(result, conf: float) -> dict:
@@ -38,16 +35,13 @@ def main():
     p.add_argument("--weights", type=Path, default=DEFAULT_WEIGHTS)
     p.add_argument("--source", type=str, required=True, help="Image, dir, or video")
     p.add_argument("--conf", type=float, default=0.03)
-    p.add_argument("--imgsz", nargs="+", type=int, default=[480, 640])
+    p.add_argument("--imgsz", nargs="+", type=int, default=list(IMGSZ))
     p.add_argument("--device", default="0")
     p.add_argument("--save", action="store_true", default=True)
     p.add_argument("--out-json", type=Path, default=None)
     args = p.parse_args()
 
-    if not args.weights.is_file():
-        raise FileNotFoundError(f"Weights not found: {args.weights}. Train first.")
-
-    model = YOLO(str(args.weights))
+    model = build_model(args.weights)
     project = ROOT / "runs" / "predict"
     imgsz = args.imgsz[0] if len(args.imgsz) == 1 else args.imgsz
     results = model.predict(

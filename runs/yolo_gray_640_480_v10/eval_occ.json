@@ -1,0 +1,111 @@
+{
+  "images": "/home/zhangrui/PartialPersonDetection/data/person/images/val",
+  "labels": "/home/zhangrui/PartialPersonDetection/data/person/labels/val",
+  "reports": [
+    {
+      "model": "runs/yolo_gray_640_480_v10/weights/best.pt",
+      "n_images": 7641,
+      "conf": 0.03,
+      "iou": 0.7,
+      "occupancy": {
+        "accuracy": 0.7948,
+        "precision": 0.7931,
+        "recall": 0.9267,
+        "f1": 0.8547,
+        "tp": 4612,
+        "tn": 1461,
+        "fp": 1203,
+        "fn": 365,
+        "n": 7641,
+        "n_occupied_gt": 4977,
+        "n_empty_gt": 2664
+      },
+      "detection": {
+        "mAP50": 0.4669,
+        "n_gt_boxes": 15720,
+        "n_pred_boxes": 43914
+      },
+      "size_mb": 1.177,
+      "occupancy_sweep": {
+        "0.005": {
+          "accuracy": 0.6909,
+          "precision": 0.6803,
+          "recall": 0.9912,
+          "f1": 0.8068,
+          "tp": 4933,
+          "tn": 346,
+          "fp": 2318,
+          "fn": 44,
+          "n": 7641,
+          "n_occupied_gt": 4977,
+          "n_empty_gt": 2664
+        },
+        "0.010": {
+          "accuracy": 0.7354,
+          "precision": 0.7179,
+          "recall": 0.9781,
+          "f1": 0.828,
+          "tp": 4868,
+          "tn": 751,
+          "fp": 1913,
+          "fn": 109,
+          "n": 7641,
+          "n_occupied_gt": 4977,
+          "n_empty_gt": 2664
+        },
+        "0.015": {
+          "accuracy": 0.7597,
+          "precision": 0.7434,
+          "recall": 0.9638,
+          "f1": 0.8394,
+          "tp": 4797,
+          "tn": 1008,
+          "fp": 1656,
+          "fn": 180,
+          "n": 7641,
+          "n_occupied_gt": 4977,
+          "n_empty_gt": 2664
+        },
+        "0.020": {
+          "accuracy": 0.777,
+          "precision": 0.7646,
+          "recall": 0.9502,
+          "f1": 0.8473,
+          "tp": 4729,
+          "tn": 1208,
+          "fp": 1456,
+          "fn": 248,
+          "n": 7641,
+          "n_occupied_gt": 4977,
+          "n_empty_gt": 2664
+        },
+        "0.030": {
+          "accuracy": 0.7948,
+          "precision": 0.7931,
+          "recall": 0.9267,
+          "f1": 0.8547,
+          "tp": 4612,
+          "tn": 1461,
+          "fp": 1203,
+          "fn": 365,
+          "n": 7641,
+          "n_occupied_gt": 4977,
+          "n_empty_gt": 2664
+        },
+        "0.050": {
+          "accuracy": 0.8081,
+          "precision": 0.8298,
+          "recall": 0.8875,
+          "f1": 0.8577,
+          "tp": 4417,
+          "tn": 1758,
+          "fp": 906,
+          "fn": 560,
+          "n": 7641,
+          "n_occupied_gt": 4977,
+          "n_empty_gt": 2664
+        }
+      }
+    }
+  ]
+}

@@ -145,6 +145,114 @@ def average_precision(matched_scores: list[tuple[float, int]], n_gt: int) -> flo
     return float(ap / 101)
 
 
+def _occupancy_from_max_scores(y_true: np.ndarray, max_scores: np.ndarray, conf: float) -> dict:
+    return occupancy_metrics(y_true, (max_scores >= conf).astype(np.int32))
+
+
+def run_pt(
+    model: Path,
+    image_dir: Path,
+    label_dir: Path,
+    conf: float,
+    iou: float,
+    device: str = "0",
+    sweep: list[float] | None = None,
+) -> dict:
+    """GPU PT eval using the same grayscale preprocess + decode as ONNX."""
+    import torch
+    from ultralytics import YOLO
+
+    yolo = YOLO(str(model))
+    if isinstance(device, str) and device.isdigit():
+        device = f"cuda:{device}"
+    net = yolo.model.to(device).eval()
+    images = _list_images(image_dir)
+    if not images:
+        raise FileNotFoundError(f"No images in {image_dir}")
+
+    y_true, y_pred = [], []
+    max_scores = []
+    match_scores = []
+    n_gt = 0
+    n_pred = 0
+    batch, buf_x, buf_im = 32, [], []
+    conf_floor = min([conf] + (sweep or []))
+
+    def flush():
+        nonlocal n_gt, n_pred
+        if not buf_x:
+            return
+        x = torch.from_numpy(np.concatenate(buf_x, axis=0)).to(device)
+        with torch.inference_mode():
+            raw = net(x)
+        pred = raw[0] if isinstance(raw, (list, tuple)) else raw
+        pred = pred.detach().float().cpu().numpy()
+        for i, im in enumerate(buf_im):
+            # end2end export is [K,6] xyxy+conf+cls; raw PT is [5,N] or [4+nc,N]
+            one = pred[i]
+            if one.ndim == 2 and one.shape[-1] == 6:
+                scores_all = one[:, 4]
+                keep0 = scores_all >= conf_floor
+                boxes, scores = one[keep0, :4], scores_all[keep0]
+            else:
+                boxes, scores = decode(one, conf_floor, iou)
+            gt = read_gt_boxes(label_dir / f"{im.stem}.txt")
+            occupied_gt = len(gt) > 0
+            y_true.append(int(occupied_gt))
+            max_sc = float(scores.max()) if len(scores) else 0.0
+            max_scores.append(max_sc)
+            keep = scores >= conf
+            boxes_c, scores_c = boxes[keep], scores[keep]
+            y_pred.append(int(len(boxes_c) > 0))
+            n_gt += len(gt)
+            n_pred += len(boxes_c)
+            if len(boxes_c) == 0:
+                continue
+            if len(gt) == 0:
+                match_scores.extend((float(s), 0) for s in scores_c)
+                continue
+            ious = box_iou(boxes_c, gt)
+            used = set()
+            for j in scores_c.argsort()[::-1]:
+                k = int(ious[j].argmax())
+                if ious[j, k] >= 0.5 and k not in used:
+                    match_scores.append((float(scores_c[j]), 1))
+                    used.add(k)
+                else:
+                    match_scores.append((float(scores_c[j]), 0))
+        buf_x.clear()
+        buf_im.clear()
+
+    for im in images:
+        buf_x.append(preprocess(im))
+        buf_im.append(im)
+        if len(buf_x) >= batch:
+            flush()
+    flush()
+
+    y_true_a = np.asarray(y_true)
+    max_a = np.asarray(max_scores, dtype=np.float32)
+    occ = occupancy_metrics(y_true_a, np.asarray(y_pred))
+    report = {
+        "model": str(model),
+        "n_images": len(images),
+        "conf": conf,
+        "iou": iou,
+        "occupancy": occ,
+        "detection": {
+            "mAP50": round(average_precision(match_scores, n_gt), 4),
+            "n_gt_boxes": n_gt,
+            "n_pred_boxes": n_pred,
+        },
+        "size_mb": round(model.stat().st_size / 1024 / 1024, 3),
+    }
+    if sweep:
+        report["occupancy_sweep"] = {
+            f"{c:.3f}": _occupancy_from_max_scores(y_true_a, max_a, c) for c in sweep
+        }
+    return report
+
+
 def run_onnx(model: Path, image_dir: Path, label_dir: Path, conf: float, iou: float) -> dict:
     sess = ort.InferenceSession(str(model), providers=["CPUExecutionProvider"])
     inp = sess.get_inputs()[0].name
@@ -207,6 +315,14 @@ def main():
     p.add_argument("--labels", type=Path, default=None)
     p.add_argument("--conf", type=float, default=0.03)
     p.add_argument("--iou", type=float, default=0.7)
+    p.add_argument("--device", default="0", help="CUDA device for .pt eval")
+    p.add_argument(
+        "--sweep",
+        type=float,
+        nargs="*",
+        default=None,
+        help="Extra occupancy conf thresholds (PT only)",
+    )
     p.add_argument("--out-json", type=Path, default=ROOT / "runs" / "quant" / "eval_report.json")
     args = p.parse_args()
 
@@ -229,13 +345,32 @@ def main():
     reports = []
     for w in args.weights:
         print(f"Evaluating {w}", flush=True)
-        r = run_onnx(w, image_dir, label_dir, args.conf, args.iou)
+        if w.suffix == ".pt":
+            r = run_pt(
+                w,
+                image_dir,
+                label_dir,
+                args.conf,
+                args.iou,
+                device=args.device,
+                sweep=args.sweep,
+            )
+        else:
+            r = run_onnx(w, image_dir, label_dir, args.conf, args.iou)
         reports.append(r)
         print(
             f"  size={r['size_mb']}MB  occ_acc={r['occupancy']['accuracy']}  "
             f"occ_p={r['occupancy']['precision']}  occ_r={r['occupancy']['recall']}  "
-            f"occ_f1={r['occupancy']['f1']}  mAP50={r['detection']['mAP50']}"
+            f"occ_f1={r['occupancy']['f1']}  mAP50={r['detection']['mAP50']}",
+            flush=True,
         )
+        if "occupancy_sweep" in r:
+            for k, v in r["occupancy_sweep"].items():
+                print(
+                    f"  sweep conf={k}  occ_r={v['recall']}  occ_p={v['precision']}  "
+                    f"fn={v['fn']}  fp={v['fp']}",
+                    flush=True,
+                )
 
     args.out_json.parent.mkdir(parents=True, exist_ok=True)
     payload = {"images": str(image_dir), "labels": str(label_dir), "reports": reports}

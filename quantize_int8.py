@@ -133,6 +133,7 @@ def find_dopt() -> Path | None:
 
 
 def run_official_dopt(dopt: Path, model: Path, prototxt: Path, out: Path, compress: Path) -> None:
+    # dopt cwd is its own install dir; relative paths would resolve there.
     cmd = [
         sys.executable,
         str(dopt),
@@ -141,17 +142,17 @@ def run_official_dopt(dopt: Path, model: Path, prototxt: Path, out: Path, compre
         "--mode",
         "0",
         "--model",
-        str(model),
+        str(model.resolve()),
         "--cal_conf",
-        str(prototxt),
+        str(prototxt.resolve()),
         "--output",
-        str(out),
+        str(out.resolve()),
         "--input_shape",
         f"{INPUT_NAME}:1,1,{H},{W}",
         "--out_nodes",
         "output0",
         "--compress_conf",
-        str(compress),
+        str(compress.resolve()),
     ]
     env = os.environ.copy()
     # Huawei dopt ships old _pb2.py; protobuf>=4 rejects those descriptors.

@@ -1,0 +1,36 @@
+# Pico YOLOv10, 1-channel 640x480 occupancy (P3/P4/P5).
+# Same v10 blocks (SCDown / PSA / C2fCIB / v10Detect), width cut so FP32 < 2 MB.
+# ~469k params, ~1.79 MB FP32. Stem is 8-wide (no RGB yolov10n inject).
+channels: 1
+nc: 1
+scale: n
+scales:
+  n: [0.33, 0.10, 256]
+
+backbone:
+  - [-1, 1, Conv, [64, 3, 2]]  # 0-P1/2
+  - [-1, 1, Conv, [128, 3, 2]]  # 1-P2/4
+  - [-1, 3, C2f, [128, True]]
+  - [-1, 1, Conv, [256, 3, 2]]  # 3-P3/8
+  - [-1, 6, C2f, [256, True]]
+  - [-1, 1, SCDown, [512, 3, 2]]  # 5-P4/16
+  - [-1, 6, C2f, [512, True]]
+  - [-1, 1, SCDown, [1024, 3, 2]]  # 7-P5/32
+  - [-1, 3, C2f, [1024, True]]
+  - [-1, 1, SPPF, [1024, 5]]
+  - [-1, 1, PSA, [1024]]  # 10
+
+head:
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
+  - [[-1, 6], 1, Concat, [1]]
+  - [-1, 3, C2f, [512]]  # 13
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
+  - [[-1, 4], 1, Concat, [1]]
+  - [-1, 3, C2f, [256]]  # 16 P3/8
+  - [-1, 1, Conv, [256, 3, 2]]
+  - [[-1, 13], 1, Concat, [1]]
+  - [-1, 3, C2f, [512]]  # 19 P4/16
+  - [-1, 1, SCDown, [512, 3, 2]]
+  - [[-1, 10], 1, Concat, [1]]
+  - [-1, 3, C2fCIB, [1024, True, True]]  # 22 P5/32
+  - [[16, 19, 22], 1, v10Detect, [nc]]
