@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Convert the official dopt ONNX to a HiAI offline model with --compress_conf.
 
-  omg --framework=5 --model weights/best_int8_dopt.onnx \\
-      --output weights/best_int8 --input_shape images:1,1,480,640 \\
+  omg --framework=5 --model weights/yolo_gray_640_480_int8.onnx \\
+      --output weights/yolo_gray_640_480_int8 --input_shape images:1,1,480,640 \\
       --out_nodes output0:0 --compress_conf runs/quant/compress_param
 """
 
@@ -36,9 +36,9 @@ def find_omg() -> Path:
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--model", type=Path, default=ROOT / "weights" / "best_int8_dopt.onnx")
-    p.add_argument("--compress-conf", type=Path, default=ROOT / "runs" / "quant" / "compress_param")
-    p.add_argument("--output", type=Path, default=ROOT / "weights" / "best_int8")
+    p.add_argument("--model", type=Path, default=ROOT / "weights" / "yolo_gray_640_480_int8.onnx")
+    p.add_argument("--compress-conf", type=Path, default=ROOT / "weights" / "yolo_gray_640_480_compress_param")
+    p.add_argument("--output", type=Path, default=ROOT / "weights" / "yolo_gray_640_480_int8")
     p.add_argument("--target", default="om", choices=("om", "omc", "tiny"))
     args = p.parse_args()
     if not args.model.is_file():

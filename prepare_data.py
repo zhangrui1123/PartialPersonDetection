@@ -309,7 +309,6 @@ def convert_coco(workers: int = 16) -> Path:
     for split in ("train2017", "val2017"):
         if not (img_root / split).is_dir() or not (lab_root / split).is_dir():
             raise FileNotFoundError(f"Missing COCO {split} under {COCO_RAW}")
-    from concurrent.futures import ProcessPoolExecutor, as_completed
 
     jobs = []
     for split, out_split in (("train2017", "train"), ("val2017", "val")):
@@ -326,7 +325,8 @@ def convert_coco(workers: int = 16) -> Path:
             )
     stats = {"person": 0, "empty": 0, "skip": 0, "fail": 0}
     print(f"Converting {len(jobs)} COCO images to 640x480 gray")
-    with ProcessPoolExecutor(max_workers=workers) as ex:
+    # Threads: ProcessPool + OpenCV deadlocks after fork.
+    with ThreadPoolExecutor(max_workers=workers) as ex:
         futs = [ex.submit(_convert_one, job) for job in jobs]
         done = 0
         for fut in as_completed(futs):

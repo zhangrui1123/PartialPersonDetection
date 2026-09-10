@@ -1,0 +1,61 @@
+{
+  "images": "data/person/images/val",
+  "labels": "data/person/labels/val",
+  "reports": [
+    {
+      "model": "weights/yolo_gray_640_480.onnx",
+      "n_images": 7641,
+      "conf": 0.03,
+      "iou": 0.7,
+      "occupancy": {
+        "accuracy": 0.8823,
+        "precision": 0.8866,
+        "recall": 0.9395,
+        "f1": 0.9123,
+        "tp": 4676,
+        "tn": 2066,
+        "fp": 598,
+        "fn": 301,
+        "n": 7641,
+        "n_occupied_gt": 4977,
+        "n_empty_gt": 2664
+      },
+      "detection": {
+        "mAP50": 0.6585,
+        "n_gt_boxes": 15720,
+        "n_pred_boxes": 32773
+      },
+      "size_mb": 11.656
+    },
+    {
+      "model": "weights/yolo_gray_640_480_int8.onnx",
+      "n_images": 7641,
+      "conf": 0.03,
+      "iou": 0.7,
+      "occupancy": {
+        "accuracy": 0.8816,
+        "precision": 0.886,
+        "recall": 0.9389,
+        "f1": 0.9117,
+        "tp": 4673,
+        "tn": 2063,
+        "fp": 601,
+        "fn": 304,
+        "n": 7641,
+        "n_occupied_gt": 4977,
+        "n_empty_gt": 2664
+      },
+      "detection": {
+        "mAP50": 0.658,
+        "n_gt_boxes": 15720,
+        "n_pred_boxes": 33043
+      },
+      "size_mb": 11.646
+    }
+  ],
+  "delta_int8_minus_fp32": {
+    "occupancy_accuracy": -0.0007,
+    "occupancy_f1": -0.0006,
+    "mAP50": -0.0005
+  }
+}

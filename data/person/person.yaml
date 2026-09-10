@@ -1,4 +1,4 @@
-path: /home/rui/projects/PartialPersonDetection/data/person
+path: /home/zhangrui/PartialPersonDetection/data/person
 train: images/train
 val: images/val
 nc: 1

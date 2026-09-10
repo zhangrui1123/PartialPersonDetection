@@ -10,7 +10,7 @@ from pathlib import Path
 from ultralytics import YOLO
 
 ROOT = Path(__file__).resolve().parent
-DEFAULT_WEIGHTS = ROOT / "weights" / "best.pt"
+DEFAULT_WEIGHTS = ROOT / "weights" / "yolo_gray_640_480.pt"
 
 
 def occupancy_from_result(result, conf: float) -> dict:

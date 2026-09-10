@@ -1,4 +1,4 @@
-# Grayscale 640x480 person occupancy (YOLOv8n).
+# Grayscale 640x480 person occupancy (yolo_gray_640_480).
 model: configs/yolov8n-gray.yaml
 pretrained_rgb: weights/yolov8n.pt
 data: data/person/person.yaml
@@ -25,5 +25,5 @@ hsv_s: 0.0
 hsv_v: 0.4
 erasing: 0.25
 project: runs
-name: yolov8n_gray
+name: yolo_gray_640_480
 exist_ok: true

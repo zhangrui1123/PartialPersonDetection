@@ -31,8 +31,8 @@ from onnxruntime.quantization import (
 )
 
 ROOT = Path(__file__).resolve().parent
-DEFAULT_ONNX = ROOT / "weights" / "best.onnx"
-DEFAULT_OUT = ROOT / "weights" / "best_int8.onnx"
+DEFAULT_ONNX = ROOT / "weights" / "yolo_gray_640_480.onnx"
+DEFAULT_OUT = ROOT / "weights" / "yolo_gray_640_480_int8.onnx"
 H, W = 480, 640
 INPUT_NAME = "images"
 
@@ -243,7 +243,16 @@ def main():
     dopt = find_dopt()
     if dopt is not None:
         print(f"Using official CANN Kit tool: {dopt}")
-        run_official_dopt(dopt, args.model, prototxt, args.output, work / "compress_param")
+        compress = work / "compress_param"
+        run_official_dopt(dopt, args.model, prototxt, args.output, compress)
+        published_compress = args.output.with_name(
+            args.output.name.replace("_int8.onnx", "_compress_param")
+            if args.output.name.endswith("_int8.onnx")
+            else args.output.stem + "_compress_param"
+        )
+        if compress.is_file():
+            shutil.copy2(compress, published_compress)
+            print(f"Wrote {published_compress} ({published_compress.stat().st_size / 1024:.1f} KB)")
         backend = "dopt_so.py"
     else:
         print(
