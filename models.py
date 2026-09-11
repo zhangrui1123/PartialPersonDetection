@@ -7,9 +7,12 @@ Architecture lives in configs/yolov8n-gray.yaml; published weights in weights/.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from pathlib import Path
 
+import yaml
 from ultralytics import YOLO
+from ultralytics.nn import tasks as _yolo_tasks
 
 ROOT = Path(__file__).resolve().parent
 
@@ -18,6 +21,7 @@ ARCH_YAML = ROOT / "configs" / "yolov8n-gray.yaml"
 PICO_ARCH_YAML = ROOT / "configs" / "yolov8n-gray-pico.yaml"
 V5_ARCH_YAML = ROOT / "configs" / "yolov5n-gray.yaml"
 V10_ARCH_YAML = ROOT / "configs" / "yolov10n-gray.yaml"
+V26_ARCH_YAML = ROOT / "configs" / "yolo26n-gray.yaml"
 DEFAULT_WEIGHTS = ROOT / "weights" / f"{MODEL_NAME}.pt"
 DEFAULT_ONNX = ROOT / "weights" / f"{MODEL_NAME}.onnx"
 DEFAULT_INT8_ONNX = ROOT / "weights" / f"{MODEL_NAME}_int8.onnx"
@@ -25,12 +29,35 @@ DEFAULT_INT8_OM = ROOT / "weights" / f"{MODEL_NAME}_int8.om"
 PRETRAINED_RGB = ROOT / "weights" / "yolov8n.pt"
 PRETRAINED_V5 = ROOT / "weights" / "yolov5nu.pt"
 PRETRAINED_V10 = ROOT / "weights" / "yolov10n.pt"
+PRETRAINED_V26 = ROOT / "weights" / "yolo26n.pt"
 
 CHANNELS = 1
 NC = 1
 IMGSZ = (480, 640)  # H, W
 STRIDES = (8, 16, 32)
 OUTPUT_SHAPE = (1, 5, 6300)  # xywh + person, 4800+1200+300 anchors
+CHS_ARCH_YAML = ROOT / "configs" / "yolov10n-gray-chs.yaml"
+NCH_ARCH_YAML = ROOT / "configs" / "yolov10n-gray-nch.yaml"
+
+
+def yaml_wants_exact_width(path: Path) -> bool:
+    with path.open() as f:
+        spec = yaml.safe_load(f) or {}
+    return bool(spec.get("exact_width"))
+
+
+@contextmanager
+def exact_width_mode(enabled: bool = True):
+    """Keep YAML channel counts as-is (do not round up to multiples of 8)."""
+    if not enabled:
+        yield
+        return
+    orig = _yolo_tasks.make_divisible
+    _yolo_tasks.make_divisible = lambda x, divisor=8: int(round(float(x)))
+    try:
+        yield
+    finally:
+        _yolo_tasks.make_divisible = orig
 
 
 def build_model(
@@ -50,7 +77,8 @@ def build_model(
         yaml_path = ROOT / yaml_path
     if not yaml_path.is_file():
         raise FileNotFoundError(f"Architecture yaml missing: {yaml_path}")
-    return YOLO(str(yaml_path))
+    with exact_width_mode(yaml_wants_exact_width(yaml_path)):
+        return YOLO(str(yaml_path))
 
 
 def load_rgb_stem_into_gray(dst_model, rgb_weights: str | Path = PRETRAINED_RGB) -> None:

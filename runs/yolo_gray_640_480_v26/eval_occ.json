@@ -1,0 +1,85 @@
+{
+  "images": "/home/zhangrui/PartialPersonDetection/data/person/images/val",
+  "labels": "/home/zhangrui/PartialPersonDetection/data/person/labels/val",
+  "reports": [
+    {
+      "model": "/home/zhangrui/PartialPersonDetection/runs/yolo_gray_640_480_v26/weights/best.pt",
+      "n_images": 7641,
+      "conf": 0.03,
+      "iou": 0.7,
+      "occupancy": {
+        "accuracy": 0.8339,
+        "precision": 0.8381,
+        "recall": 0.9234,
+        "f1": 0.8787,
+        "tp": 4596,
+        "tn": 1776,
+        "fp": 888,
+        "fn": 381,
+        "n": 7641,
+        "n_occupied_gt": 4977,
+        "n_empty_gt": 2664
+      },
+      "detection": {
+        "mAP50": 0.5296,
+        "n_gt_boxes": 15720,
+        "n_pred_boxes": 38739
+      },
+      "size_mb": 1.339,
+      "occupancy_sweep": {
+        "0.020": {
+          "accuracy": 0.8198,
+          "precision": 0.8109,
+          "recall": 0.9433,
+          "f1": 0.8721,
+          "tp": 4695,
+          "tn": 1569,
+          "fp": 1095,
+          "fn": 282,
+          "n": 7641,
+          "n_occupied_gt": 4977,
+          "n_empty_gt": 2664
+        },
+        "0.030": {
+          "accuracy": 0.8339,
+          "precision": 0.8381,
+          "recall": 0.9234,
+          "f1": 0.8787,
+          "tp": 4596,
+          "tn": 1776,
+          "fp": 888,
+          "fn": 381,
+          "n": 7641,
+          "n_occupied_gt": 4977,
+          "n_empty_gt": 2664
+        },
+        "0.040": {
+          "accuracy": 0.8392,
+          "precision": 0.8565,
+          "recall": 0.9046,
+          "f1": 0.8799,
+          "tp": 4502,
+          "tn": 1910,
+          "fp": 754,
+          "fn": 475,
+          "n": 7641,
+          "n_occupied_gt": 4977,
+          "n_empty_gt": 2664
+        },
+        "0.050": {
+          "accuracy": 0.8432,
+          "precision": 0.8716,
+          "recall": 0.8905,
+          "f1": 0.8809,
+          "tp": 4432,
+          "tn": 2011,
+          "fp": 653,
+          "fn": 545,
+          "n": 7641,
+          "n_occupied_gt": 4977,
+          "n_empty_gt": 2664
+        }
+      }
+    }
+  ]
+}

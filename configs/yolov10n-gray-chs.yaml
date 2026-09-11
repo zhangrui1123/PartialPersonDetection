@@ -1,0 +1,37 @@
+# YOLOv10 occupancy sized for CHS INT8 I/O = 512KB (27x120x160 = 506.25KB).
+# Stride-4 stem (no P1 240x320). exact_width keeps 27/18/54/108 (not rounded to 8).
+# Peak maps: 27x120x160 and 108x60x80 = 518400 B = 506.25KB.
+channels: 1
+nc: 1
+exact_width: true
+scale: n
+scales:
+  n: [0.33, 1.0, 8192]
+
+backbone:
+  - [-1, 1, Conv, [27, 3, 4]]  # 0-P2/4  27x120x160 = 506.25KB
+  - [-1, 1, Conv, [27, 3, 1]]  # 1
+  - [-1, 3, C2f, [18, True]]   # 2  concat 27x120x160
+  - [-1, 1, Conv, [54, 3, 2]]  # 3-P3/8
+  - [-1, 6, C2f, [54, True]]   # 4  n=2 concat 108x60x80 = 506.25KB
+  - [-1, 1, SCDown, [54, 3, 2]]  # 5-P4/16
+  - [-1, 6, C2f, [54, True]]
+  - [-1, 1, SCDown, [108, 3, 2]]  # 7-P5/32
+  - [-1, 3, C2f, [108, True]]
+  - [-1, 1, SPPF, [108, 5]]
+  - [-1, 1, PSA, [108]]  # 10
+
+head:
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
+  - [[-1, 6], 1, Concat, [1]]
+  - [-1, 3, C2f, [54]]  # 13
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
+  - [[-1, 4], 1, Concat, [1]]  # 108x60x80 = 506.25KB
+  - [-1, 3, C2f, [54]]  # 16 P3/8
+  - [-1, 1, Conv, [54, 3, 2]]
+  - [[-1, 13], 1, Concat, [1]]
+  - [-1, 3, C2f, [54]]  # 19 P4/16
+  - [-1, 1, SCDown, [54, 3, 2]]
+  - [[-1, 10], 1, Concat, [1]]
+  - [-1, 3, C2fCIB, [108, True, True]]  # 22 P5/32
+  - [[16, 19, 22], 1, v10Detect, [nc]]

@@ -1,0 +1,37 @@
+# Pico backbone (P1 + P3=32) + single Detect head + wide P4/P5.
+# Goal: cut empty-frame FPR vs v10 dual-head, keep occupancy recall.
+# ~526k params, 2.007 MB FP32. P3/P4/P5 = 32/64/80.
+channels: 1
+nc: 1
+exact_width: true
+scale: n
+scales:
+  n: [0.33, 1.0, 8192]
+
+backbone:
+  - [-1, 1, Conv, [8, 3, 2]]  # 0-P1/2  8x240x320
+  - [-1, 1, Conv, [16, 3, 2]]  # 1-P2/4
+  - [-1, 3, C2f, [16, True]]
+  - [-1, 1, Conv, [32, 3, 2]]  # 3-P3/8  same as pico
+  - [-1, 6, C2f, [32, True]]
+  - [-1, 1, SCDown, [64, 3, 2]]  # 5-P4/16
+  - [-1, 6, C2f, [64, True]]
+  - [-1, 1, SCDown, [80, 3, 2]]  # 7-P5/32
+  - [-1, 3, C2f, [80, True]]
+  - [-1, 1, SPPF, [80, 5]]
+  - [-1, 1, PSA, [80]]  # 10
+
+head:
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
+  - [[-1, 6], 1, Concat, [1]]
+  - [-1, 3, C2f, [64]]  # 13
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
+  - [[-1, 4], 1, Concat, [1]]
+  - [-1, 3, C2f, [32]]  # 16 P3/8
+  - [-1, 1, Conv, [32, 3, 2]]
+  - [[-1, 13], 1, Concat, [1]]
+  - [-1, 3, C2f, [64]]  # 19 P4/16
+  - [-1, 1, SCDown, [64, 3, 2]]
+  - [[-1, 10], 1, Concat, [1]]
+  - [-1, 3, C2fCIB, [80, True, True]]  # 22 P5/32
+  - [[16, 19, 22], 1, Detect, [nc]]

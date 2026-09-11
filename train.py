@@ -8,7 +8,16 @@ from pathlib import Path
 
 import yaml
 
-from models import ARCH_YAML, PICO_ARCH_YAML, PRETRAINED_RGB, ROOT, build_model, load_rgb_stem_into_gray
+from models import (
+    ARCH_YAML,
+    PICO_ARCH_YAML,
+    PRETRAINED_RGB,
+    ROOT,
+    build_model,
+    exact_width_mode,
+    load_rgb_stem_into_gray,
+    yaml_wants_exact_width,
+)
 
 DEFAULT_CFG = ROOT / "configs" / "train.yaml"
 
@@ -84,27 +93,29 @@ def main():
     if not rgb_path.is_absolute():
         rgb_path = ROOT / rgb_path
 
-    if args.weights is None:
-        print(f"Train {arch}  data={cfg['data']}  imgsz={cfg.get('imgsz')}")
-        model = build_model(weights=None, arch=arch)
-        stem_out = int(model.model.model[0].conv.weight.shape[0])
-        # Pico stem is 8-wide; RGB yolov8n is 16-wide and will not transfer.
-        if stem_out == 16 and rgb_path.is_file():
+    # Trainer rebuilds DetectionModel inside train(); keep exact-width patch alive.
+    with exact_width_mode(yaml_wants_exact_width(arch) if args.weights is None else False):
+        if args.weights is None:
+            print(f"Train {arch}  data={cfg['data']}  imgsz={cfg.get('imgsz')}")
+            model = build_model(weights=None, arch=arch)
+            stem_out = int(model.model.model[0].conv.weight.shape[0])
+            # Pico stem is 8-wide; RGB yolov8n is 16-wide and will not transfer.
+            if stem_out == 16 and rgb_path.is_file():
 
-            def _inject_pretrained(trainer):
-                load_rgb_stem_into_gray(trainer.model, rgb_path)
-                ema = getattr(trainer, "ema", None)
-                if ema is not None and getattr(ema, "ema", None) is not None:
-                    ema.ema.load_state_dict(trainer.model.state_dict())
-                    ema.updates = 0
+                def _inject_pretrained(trainer):
+                    load_rgb_stem_into_gray(trainer.model, rgb_path)
+                    ema = getattr(trainer, "ema", None)
+                    if ema is not None and getattr(ema, "ema", None) is not None:
+                        ema.ema.load_state_dict(trainer.model.state_dict())
+                        ema.updates = 0
 
-            model.add_callback("on_pretrain_routine_end", _inject_pretrained)
+                model.add_callback("on_pretrain_routine_end", _inject_pretrained)
+            else:
+                print(f"Skip RGB stem inject (dest first conv out={stem_out})")
         else:
-            print(f"Skip RGB stem inject (dest first conv out={stem_out})")
-    else:
-        print(f"Finetune {args.weights}  data={cfg['data']}")
-        model = build_model(args.weights)
-    model.train(**cfg)
+            print(f"Finetune {args.weights}  data={cfg['data']}")
+            model = build_model(args.weights)
+        model.train(**cfg)
     save_dir = Path(cfg["project"]) / cfg.get("name", "exp") / "weights"
     print(f"Best checkpoint: {save_dir / 'best.pt'}")
 
