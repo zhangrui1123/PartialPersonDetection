@@ -1,5 +1,7 @@
-# Legacy mosaic-off FT of the Attention/C2PSA YOLO26-wide (pre-Conv replacement).
+# Mosaic-off FT: YOLO26-wide with Conv C3k2 instead of C2PSA / attn MatMul.
+# Compatible-init from published attn weights, then adapt the two new P5 blocks.
 model: configs/yolo26n-gray.yaml
+init_from: weights/yolo_gray_640_480_v26.pt
 data: data/person/person.yaml
 epochs: 20
 imgsz: [480, 640]
@@ -12,7 +14,7 @@ optimizer: SGD
 lr0: 0.003
 lrf: 0.01
 seed: 42
-pretrained: true
+pretrained: false
 warmup_epochs: 1.0
 warmup_bias_lr: 0.0
 mosaic: 0.0
@@ -30,5 +32,5 @@ hsv_v: 0.4
 cls: 1.0
 occupancy_loss: 0
 project: runs
-name: yolo_gray_640_480_v26_ft
+name: yolo_gray_640_480_v26_conv
 exist_ok: true

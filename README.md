@@ -113,9 +113,9 @@ Detect 每个尺度两路：回归 `cv2`（DFL 16 bin × 4 边 = 64 通道）和
 | 模型 | 召回 | 精确率 | 准确率 | 误报 | 参数 / `.pt` |
 |---|---:|---:|---:|---:|---|
 | **YOLOv8-gray**（默认） | 0.9395 | 0.887 | 0.882 | **598（22.4%）** | 3.01M / 5.95 MB |
-| **YOLO26-wide** | **0.9437** | 0.855 | 0.859 | 795（29.8%） | 522k / 1.34 MB，FP32 1.99 MB |
+| **YOLO26-wide** | **0.9548** | 0.829 | 0.842 | 981（36.8%） | 522k / 1.34 MB，FP32 1.99 MB |
 
-占用 = 任一框分数 ≥ conf 即有人。小模型用 `weights/yolo_gray_640_480_v26.pt`（mosaic-off 微调），架构 `configs/yolo26n-gray.yaml`。
+占用 = 任一框分数 ≥ conf 即有人。小模型用 `weights/yolo_gray_640_480_v26.pt`（mosaic-off 微调），架构 `configs/yolo26n-gray.yaml`。P5 的 `C2PSA` / `C3k2(attn)` 已换成 Conv `C3k2`，ONNX 不再含 Attention MatMul。
 
 ## 训推流程
 

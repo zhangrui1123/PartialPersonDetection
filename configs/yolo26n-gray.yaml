@@ -1,7 +1,8 @@
 # YOLO26 nano, 1-channel 640x480 occupancy (P3/P4/P5).
 # Official n is [0.50, 0.25, 1024] (~9.6 MB). Width/max cut so FP32 < 2 MB.
 # [0.50, 0.13, 560] → ~522k params, 1.99 MB. Stem 16-wide (can inject yolo26n.pt).
-# Keeps P1, C3k2, C2PSA, NMS-free Detect (reg_max=1).
+# C2PSA / C3k2(attn) replaced by Conv C3k2 so the graph has no Attention MatMul.
+# NMS-free Detect (reg_max=1).
 channels: 1
 nc: 1
 end2end: true
@@ -21,7 +22,7 @@ backbone:
   - [-1, 1, Conv, [1024, 3, 2]]  # 7-P5/32
   - [-1, 2, C3k2, [1024, True]]
   - [-1, 1, SPPF, [1024, 5, 3, True]]  # 9
-  - [-1, 2, C2PSA, [1024]]  # 10
+  - [-1, 2, C3k2, [1024, True]]  # 10  was C2PSA (QK MatMul)
 
 head:
   - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
@@ -35,5 +36,5 @@ head:
   - [-1, 2, C3k2, [512, True]]  # 19 P4/16
   - [-1, 1, Conv, [512, 3, 2]]
   - [[-1, 10], 1, Concat, [1]]
-  - [-1, 1, C3k2, [1024, True, 0.5, True]]  # 22 P5/32
+  - [-1, 1, C3k2, [1024, True]]  # 22 P5/32  was C3k2(..., attn=True)
   - [[16, 19, 22], 1, Detect, [nc]]

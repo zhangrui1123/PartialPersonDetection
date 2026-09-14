@@ -1,4 +1,4 @@
-# YOLO26-wide from scratch (FP32 < 2 MB). Published weights used mosaic-off FT after this.
+# YOLO26-wide from scratch (Conv C3k2, no Attention MatMul). Mosaic-off FT: train_v26_conv.yaml.
 model: configs/yolo26n-gray.yaml
 pretrained_rgb: weights/yolo26n.pt
 data: data/person/person.yaml

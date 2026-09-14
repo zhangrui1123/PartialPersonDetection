@@ -2,6 +2,7 @@
 """Occupancy models: YOLOv8-gray (default) and YOLO26-wide.
 
 Grayscale 640x480, class person only. Occupancy = any box >= conf.
+YOLO26-wide uses Conv C3k2 in place of C2PSA / Attention MatMul.
 """
 
 from __future__ import annotations
