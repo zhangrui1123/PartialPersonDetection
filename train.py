@@ -10,14 +10,48 @@ import yaml
 
 from models import (
     ARCH_YAML,
-    PICO_ARCH_YAML,
     PRETRAINED_RGB,
     ROOT,
     build_model,
     exact_width_mode,
+    load_compatible_weights,
     load_rgb_stem_into_gray,
     yaml_wants_exact_width,
 )
+
+
+def _head_max_logit(head):
+    scores = head["scores"]
+    return scores.reshape(scores.shape[0], -1).amax(dim=1)
+
+
+def occupancy_maxscore_bce(preds, batch):
+    """Image-level BCE on max class logit vs empty/occupied. Cuts empty-frame FPs."""
+    import torch
+    import torch.nn.functional as F
+
+    p = preds[0] if isinstance(preds, (list, tuple)) and isinstance(preds[0], dict) else preds
+    if isinstance(p, tuple):
+        p = next((x for x in p if isinstance(x, dict)), p[-1])
+    heads = []
+    if isinstance(p, dict) and "one2many" in p:
+        heads.append(p["one2many"])
+        if "one2one" in p:
+            heads.append(p["one2one"])
+    elif isinstance(p, dict) and "scores" in p:
+        heads.append(p)
+    else:
+        import torch
+
+        return torch.zeros((), device=batch["img"].device)
+    occupied = torch.zeros(heads[0]["scores"].shape[0], device=heads[0]["scores"].device, dtype=heads[0]["scores"].dtype)
+    idx = batch.get("batch_idx")
+    if idx is not None and len(idx):
+        occupied[idx.long().unique()] = 1.0
+    loss = heads[0]["scores"].new_zeros(())
+    for head in heads:
+        loss = loss + F.binary_cross_entropy_with_logits(_head_max_logit(head), occupied)
+    return loss / len(heads)
 
 DEFAULT_CFG = ROOT / "configs" / "train.yaml"
 
@@ -50,7 +84,7 @@ def resolve_devices(requested) -> int | list[int] | str:
 
 def resolve_arch(model_name) -> Path:
     if model_name is None:
-        return PICO_ARCH_YAML if PICO_ARCH_YAML.is_file() else ARCH_YAML
+        return ARCH_YAML
     path = Path(model_name)
     if not path.is_absolute():
         path = ROOT / path
@@ -88,19 +122,21 @@ def main():
         cfg["project"] = str(ROOT / project)
 
     arch = resolve_arch(cfg.pop("model", None))
+    occ_w = float(cfg.pop("occupancy_loss", 0) or 0)
+    init_from = cfg.pop("init_from", None)
     rgb_w = cfg.pop("pretrained_rgb", None)
     rgb_path = Path(rgb_w) if rgb_w else PRETRAINED_RGB
     if not rgb_path.is_absolute():
         rgb_path = ROOT / rgb_path
 
     # Trainer rebuilds DetectionModel inside train(); keep exact-width patch alive.
-    with exact_width_mode(yaml_wants_exact_width(arch) if args.weights is None else False):
+    with exact_width_mode(yaml_wants_exact_width(arch)):
         if args.weights is None:
             print(f"Train {arch}  data={cfg['data']}  imgsz={cfg.get('imgsz')}")
             model = build_model(weights=None, arch=arch)
             stem_out = int(model.model.model[0].conv.weight.shape[0])
             # Pico stem is 8-wide; RGB yolov8n is 16-wide and will not transfer.
-            if stem_out == 16 and rgb_path.is_file():
+            if stem_out == 16 and rgb_path.is_file() and not init_from:
 
                 def _inject_pretrained(trainer):
                     load_rgb_stem_into_gray(trainer.model, rgb_path)
@@ -112,9 +148,41 @@ def main():
                 model.add_callback("on_pretrain_routine_end", _inject_pretrained)
             else:
                 print(f"Skip RGB stem inject (dest first conv out={stem_out})")
+            if init_from:
+
+                def _inject_compatible(trainer):
+                    load_compatible_weights(trainer.model, init_from)
+                    ema = getattr(trainer, "ema", None)
+                    if ema is not None and getattr(ema, "ema", None) is not None:
+                        ema.ema.load_state_dict(trainer.model.state_dict())
+                        ema.updates = 0
+
+                model.add_callback("on_pretrain_routine_end", _inject_compatible)
+                print(f"Will copy compatible weights from {init_from}")
         else:
             print(f"Finetune {args.weights}  data={cfg['data']}")
             model = build_model(args.weights)
+        if occ_w > 0:
+
+            def _attach_occupancy_loss(trainer):
+                det = trainer.model
+
+                def loss(batch, preds=None):
+                    if getattr(det, "criterion", None) is None:
+                        det.criterion = det.init_criterion()
+                    if preds is None:
+                        preds = det.forward(batch["img"])
+                    loss_t, items = det.criterion(preds, batch)
+                    extra = occupancy_maxscore_bce(preds, batch) * occ_w * int(batch["img"].shape[0])
+                    if isinstance(items, dict):
+                        items = dict(items)
+                        items["occ_loss"] = extra.detach()
+                    return loss_t + extra, items
+
+                det.loss = loss
+                print(f"Occupancy max-score BCE enabled  weight={occ_w}")
+
+            model.add_callback("on_pretrain_routine_end", _attach_occupancy_loss)
         model.train(**cfg)
     save_dir = Path(cfg["project"]) / cfg.get("name", "exp") / "weights"
     print(f"Best checkpoint: {save_dir / 'best.pt'}")

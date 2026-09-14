@@ -108,6 +108,15 @@ Detect 每个尺度两路：回归 `cv2`（DFL 16 bin × 4 边 = 64 通道）和
 第一层从 RGB 预训练 `weights/yolov8n.pt` 把 3 通道卷积按通道平均迁到 1 通道。不要用 P6（480 不能被 64 整除）。
 发布权重：`weights/yolo_gray_640_480.pt`、`weights/yolo_gray_640_480.onnx`；上板 INT8：`weights/yolo_gray_640_480_int8.om`（需配合 `yolo_gray_640_480_compress_param`）。
 
+## 占用结果（全量 val 7641，conf=0.03，空镜 2664）
+
+| 模型 | 召回 | 精确率 | 准确率 | 误报 | 参数 / `.pt` |
+|---|---:|---:|---:|---:|---|
+| **YOLOv8-gray**（默认） | 0.9395 | 0.887 | 0.882 | **598（22.4%）** | 3.01M / 5.95 MB |
+| **YOLO26-wide** | **0.9437** | 0.855 | 0.859 | 795（29.8%） | 522k / 1.34 MB，FP32 1.99 MB |
+
+占用 = 任一框分数 ≥ conf 即有人。小模型用 `weights/yolo_gray_640_480_v26.pt`（mosaic-off 微调），架构 `configs/yolo26n-gray.yaml`。
+
 ## 训推流程
 
 ```

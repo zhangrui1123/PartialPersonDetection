@@ -253,7 +253,26 @@ def run_pt(
     return report
 
 
-def run_onnx(model: Path, image_dir: Path, label_dir: Path, conf: float, iou: float) -> dict:
+def _boxes_scores_from_output(out: np.ndarray, conf_floor: float, iou: float) -> tuple[np.ndarray, np.ndarray]:
+    pred = np.asarray(out)
+    if pred.ndim == 3:
+        pred = pred[0]
+    # end2end export is [K,6] xyxy+conf+cls; raw is [5,N] / [N,5]
+    if pred.ndim == 2 and pred.shape[-1] == 6:
+        scores_all = pred[:, 4]
+        keep = scores_all >= conf_floor
+        return pred[keep, :4], scores_all[keep]
+    return decode(pred, conf_floor, iou)
+
+
+def run_onnx(
+    model: Path,
+    image_dir: Path,
+    label_dir: Path,
+    conf: float,
+    iou: float,
+    sweep: list[float] | None = None,
+) -> dict:
     sess = ort.InferenceSession(str(model), providers=["CPUExecutionProvider"])
     inp = sess.get_inputs()[0].name
     images = _list_images(image_dir)
@@ -261,51 +280,62 @@ def run_onnx(model: Path, image_dir: Path, label_dir: Path, conf: float, iou: fl
         raise FileNotFoundError(f"No images in {image_dir}")
 
     y_true, y_pred = [], []
+    max_scores = []
     match_scores = []
     n_gt = 0
     n_pred = 0
+    conf_floor = min([conf] + (sweep or []))
     for im in images:
         x = preprocess(im)
         out = sess.run(None, {inp: x})[0]
-        boxes, scores = decode(out, conf, iou)
+        boxes, scores = _boxes_scores_from_output(out, conf_floor, iou)
         gt = read_gt_boxes(label_dir / f"{im.stem}.txt")
         occupied_gt = len(gt) > 0
-        occupied_pd = len(boxes) > 0
         y_true.append(int(occupied_gt))
-        y_pred.append(int(occupied_pd))
+        max_sc = float(scores.max()) if len(scores) else 0.0
+        max_scores.append(max_sc)
+        keep = scores >= conf
+        boxes_c, scores_c = boxes[keep], scores[keep]
+        y_pred.append(int(len(boxes_c) > 0))
         n_gt += len(gt)
-        n_pred += len(boxes)
-        if len(boxes) == 0:
+        n_pred += len(boxes_c)
+        if len(boxes_c) == 0:
             continue
         if len(gt) == 0:
-            match_scores.extend((float(s), 0) for s in scores)
+            match_scores.extend((float(s), 0) for s in scores_c)
             continue
-        ious = box_iou(boxes, gt)
+        ious = box_iou(boxes_c, gt)
         used = set()
-        order = scores.argsort()[::-1]
+        order = scores_c.argsort()[::-1]
         for i in order:
             j = int(ious[i].argmax())
             if ious[i, j] >= 0.5 and j not in used:
-                match_scores.append((float(scores[i]), 1))
+                match_scores.append((float(scores_c[i]), 1))
                 used.add(j)
             else:
-                match_scores.append((float(scores[i]), 0))
+                match_scores.append((float(scores_c[i]), 0))
 
-    occ = occupancy_metrics(np.asarray(y_true), np.asarray(y_pred))
-    map50 = average_precision(match_scores, n_gt)
-    return {
+    y_true_a = np.asarray(y_true)
+    occ = occupancy_metrics(y_true_a, np.asarray(y_pred))
+    report = {
         "model": str(model),
         "n_images": len(images),
         "conf": conf,
         "iou": iou,
         "occupancy": occ,
         "detection": {
-            "mAP50": round(map50, 4),
+            "mAP50": round(average_precision(match_scores, n_gt), 4),
             "n_gt_boxes": n_gt,
             "n_pred_boxes": n_pred,
         },
         "size_mb": round(model.stat().st_size / 1024 / 1024, 3),
     }
+    if sweep:
+        report["occupancy_sweep"] = {
+            f"{c:.3f}": _occupancy_from_max_scores(y_true_a, np.asarray(max_scores, dtype=np.float32), c)
+            for c in sweep
+        }
+    return report
 
 
 def main():
@@ -321,7 +351,7 @@ def main():
         type=float,
         nargs="*",
         default=None,
-        help="Extra occupancy conf thresholds (PT only)",
+        help="Extra occupancy conf thresholds",
     )
     p.add_argument("--out-json", type=Path, default=ROOT / "runs" / "quant" / "eval_report.json")
     args = p.parse_args()
@@ -356,7 +386,7 @@ def main():
                 sweep=args.sweep,
             )
         else:
-            r = run_onnx(w, image_dir, label_dir, args.conf, args.iou)
+            r = run_onnx(w, image_dir, label_dir, args.conf, args.iou, sweep=args.sweep)
         reports.append(r)
         print(
             f"  size={r['size_mb']}MB  occ_acc={r['occupancy']['accuracy']}  "

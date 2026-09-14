@@ -1,4 +1,4 @@
-# YOLO26-gray pico, FP32 < 2 MB. Target occ recall >= 0.939 @ conf=0.03.
+# YOLO26-wide from scratch (FP32 < 2 MB). Published weights used mosaic-off FT after this.
 model: configs/yolo26n-gray.yaml
 pretrained_rgb: weights/yolo26n.pt
 data: data/person/person.yaml
