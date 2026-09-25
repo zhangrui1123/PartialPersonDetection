@@ -8,12 +8,16 @@ rect: true
 batch: 128
 device: 0
 workers: 16
+plots: false
 patience: 20
 optimizer: SGD
 lr0: 0.01
 lrf: 0.01
 seed: 42
 pretrained: false
+amp: bf16
+# Indoor scenes (furniture/appliance, no outdoor objects) use 3x the outdoor loss weight.
+indoor_weight: 3
 mosaic: 1.0
 close_mosaic: 10
 degrees: 5.0
@@ -25,5 +29,5 @@ hsv_s: 0.0
 hsv_v: 0.4
 erasing: 0.25
 project: runs
-name: yolo_gray_640_480
+name: yolo_gray_640_480_indoor3
 exist_ok: true

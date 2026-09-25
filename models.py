@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Occupancy models: YOLOv8-gray (default) and YOLO26-wide.
+"""Occupancy models: YOLOv8-gray (default) and YOLO26n (no attention).
 
 Grayscale 640x480, class person only. Occupancy = any box >= conf.
-YOLO26-wide uses Conv C3k2 in place of C2PSA / Attention MatMul.
+YOLO26n uses Conv C3k2 in place of C2PSA / Attention MatMul.
 """
 
 from __future__ import annotations
@@ -75,8 +75,14 @@ def build_model(
         return YOLO(str(yaml_path))
 
 
+def unwrap_model(model):
+    """DetectionModel, possibly wrapped by DDP."""
+    return model.module if hasattr(model, "module") else model
+
+
 def load_rgb_stem_into_gray(dst_model, rgb_weights: str | Path = PRETRAINED_RGB) -> None:
     """Copy RGB yolov8n weights; average the first conv from 3ch to 1ch."""
+    dst_model = unwrap_model(dst_model)
     rgb = YOLO(str(rgb_weights))
     dst = dst_model.state_dict()
     src = rgb.model.state_dict()
@@ -107,6 +113,7 @@ def load_rgb_stem_into_gray(dst_model, rgb_weights: str | Path = PRETRAINED_RGB)
 
 def load_compatible_weights(dst_model, src_weights: str | Path) -> None:
     """Copy overlapping tensors from a same-family 1ch checkpoint (exact or sliced)."""
+    dst_model = unwrap_model(dst_model)
     src_path = Path(src_weights)
     if not src_path.is_absolute():
         src_path = ROOT / src_path

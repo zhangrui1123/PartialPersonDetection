@@ -1,4 +1,4 @@
-# YOLO26-wide from scratch (Conv C3k2, no Attention MatMul). Mosaic-off FT: train_v26_conv.yaml.
+# Official YOLO26n minus attention, from scratch. Mosaic-off FT: train_v26_conv.yaml.
 model: configs/yolo26n-gray.yaml
 pretrained_rgb: weights/yolo26n.pt
 data: data/person/person.yaml
@@ -7,13 +7,15 @@ imgsz: [480, 640]
 rect: true
 batch: 128
 device: 0
-workers: 8
-patience: 20
+workers: 16
+plots: false
+patience: 50
 optimizer: SGD
 lr0: 0.01
 lrf: 0.01
 seed: 42
 pretrained: false
+amp: bf16
 mosaic: 1.0
 close_mosaic: 10
 degrees: 5.0
@@ -25,5 +27,5 @@ hsv_s: 0.0
 hsv_v: 0.4
 erasing: 0.25
 project: runs
-name: yolo_gray_640_480_v26
+name: yolo_gray_640_480_v26n
 exist_ok: true
